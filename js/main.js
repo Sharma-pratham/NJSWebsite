@@ -58,7 +58,7 @@ function animate() {
 animate();
 
 // Set the date we're counting down to
-const countDownDate = new Date("Jan 26, 2026 00:00:00").getTime();
+const countDownDate = new Date("Feb 7, 2026 00:00:00").getTime();
 
 // Update the count down every 1 second
 const x = setInterval(function() {
