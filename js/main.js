@@ -1,87 +1,90 @@
-const waveContainer = document.querySelector('.wave-container');
-const hashtagTexts = [
-    "#onthegomeals", "#yourdailygrubdestination", "#njs", "#inhousebaking", "#parfaits",
-    "#italiansandwiches", "#specialitybistro", "#frappekiller", "#mexican", "#inhousebaking",
-    "#onthegomeals", "#yourdailygrubdestination", "#njs", "#inhousebaking", "#parfaits",
-    "#italiansandwiches", "#specialitybistro", "#frappekiller", "#mexican", "#inhousebaking"
-];
-const colors = ["#ff6b6b", "#f06595", "#cc5de8", "#845ef7", "#5c7cfa", "#339af0", "#22b8cf", "#20c997", "#51cf66", "#fcc419"];
-const links = [
-    "https://www.instagram.com/p/DSWZFHLDxOv/",
-    "https://www.instagram.com/p/DSM28dDD6wF/",
-    "https://www.instagram.com/p/DSFbOPaj3xW/",
-    "https://www.instagram.com/notjustsmoovindia/"
-];
+/* ==========================================================================
+   Not Just Smoo'V — interactions
+   1. Nav background/blur state after 40px of scroll
+   2. One-time scroll reveals (IntersectionObserver)
+   3. Pointer-driven tilt on the circular hero photo (desktop only)
+   ========================================================================== */
 
-let hashtags = [];
-let flowOffset = 0;
-const amplitude = 60;
-const frequency = 0.005;
-const speed = 1;
-let basePositions = [];
-const spacing = 250;
+(function () {
+  'use strict';
 
-hashtagTexts.forEach((text, i) => {
-    if (!waveContainer) return;
-    const a = document.createElement('a');
-    a.href = links[i % links.length];
-    a.target = "_blank";
-    a.textContent = text;
-    waveContainer.appendChild(a);
-    hashtags.push(a);
-    basePositions[i] = i * spacing;
-    a.style.color = colors[i % colors.length];
-    a.style.position = 'absolute';
-    const isMobile = window.innerWidth < 600;
-    a.style.fontSize = isMobile ? '1em' : '2em';
-    a.style.fontWeight = '600';
-});
+  var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-function animate() {
-    if (!waveContainer || hashtags.length === 0) return;
-    flowOffset += speed;
-    hashtags.forEach((tag, i) => {
-        let x = (basePositions[i] + flowOffset);
-        if (x > window.innerWidth + spacing) {
-            basePositions[i] -= (hashtags.length * spacing);
-            x = (basePositions[i] + flowOffset);
-        }
-        const y = Math.sin(x * frequency) * amplitude;
-        const derivative = Math.cos(x * frequency) * amplitude * frequency;
-        const angle = Math.atan(derivative) * (180 / Math.PI);
+  /* ---------- 1. Nav scroll state ---------- */
 
-        tag.style.transform = `translate(${x}px, ${y}px) rotate(${angle}deg)`;
-    });
-    requestAnimationFrame(animate);
-}
+  var nav = document.getElementById('nav');
 
-animate();
+  if (nav) {
+    var scrolled = false;
 
-// Set the date we're counting down to
-const countDownDate = new Date("Feb 7, 2026 00:00:00").getTime();
+    var onScroll = function () {
+      var isScrolled = (window.scrollY || window.pageYOffset || 0) > 40;
+      if (isScrolled === scrolled) return;
+      scrolled = isScrolled;
+      nav.classList.toggle('is-scrolled', scrolled);
+    };
 
-// Update the count down every 1 second
-const x = setInterval(function() {
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
 
-  // Get today's date and time
-  const now = new Date().getTime();
+    // Publish the bar's real height so anchored sections can offset by it.
+    // It wraps to two rows on narrow screens, so this can't be a constant --
+    // css falls back to 96px (the desktop height) when JS is unavailable.
+    var setNavHeight = function () {
+      document.documentElement.style.setProperty('--nav-h', nav.offsetHeight + 'px');
+    };
+    setNavHeight();
 
-  // Find the distance between now and the count down date
-  const distance = countDownDate - now;
-
-  // Time calculations for days, hours, minutes and seconds
-  const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-  const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-  // Display the result in the element with id="countdown"
-  document.getElementById("countdown").innerHTML = days + "d " + hours + "h "
-  + minutes + "m " + seconds + "s ";
-
-  // If the count down is finished, write some text
-  if (distance < 0) {
-    clearInterval(x);
-    document.getElementById("countdown").innerHTML = "EXPIRED";
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(setNavHeight).observe(nav);
+    } else {
+      window.addEventListener('resize', setNavHeight);
+    }
   }
-}, 1000);
+
+  /* ---------- 2. Scroll reveals ---------- */
+
+  var revealEls = document.querySelectorAll('[data-reveal]');
+
+  if (!revealEls.length) {
+    // nothing to do
+  } else if (!('IntersectionObserver' in window) || prefersReducedMotion) {
+    // No observer support (or motion turned down): show everything immediately.
+    Array.prototype.forEach.call(revealEls, function (el) {
+      el.classList.add('is-visible');
+    });
+  } else {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('is-visible');
+        observer.unobserve(entry.target);
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
+
+    Array.prototype.forEach.call(revealEls, function (el) {
+      observer.observe(el);
+    });
+  }
+
+  /* ---------- 3. Hero photo tilt ---------- */
+
+  // Opt-in via data-tilt. The effect was designed for a photo; it 3D-rotates
+  // whatever sits in the frame, and the brand guidelines forbid rotating the
+  // logo lockup. Add data-tilt back to the frame to re-enable it.
+  var heroPhoto = document.querySelector('#heroPhoto[data-tilt]');
+  var finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  if (heroPhoto && finePointer && !prefersReducedMotion) {
+    heroPhoto.addEventListener('mousemove', function (ev) {
+      var rect = heroPhoto.getBoundingClientRect();
+      var px = (ev.clientX - rect.left) / rect.width - 0.5;
+      var py = (ev.clientY - rect.top) / rect.height - 0.5;
+      heroPhoto.style.transform = 'rotateY(' + (px * 16) + 'deg) rotateX(' + (py * -16) + 'deg)';
+    });
+
+    heroPhoto.addEventListener('mouseleave', function () {
+      heroPhoto.style.transform = 'rotateY(0deg) rotateX(0deg)';
+    });
+  }
+})();
